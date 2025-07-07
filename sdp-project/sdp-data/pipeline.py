@@ -113,6 +113,7 @@ def extract_bug_fix_pull_requests(github_token: str=None, github_owner: str="sci
     fetched_bug_fix_pull_requests = api.search.issues_and_pull_requests(q=query, per_page=100, page=1)
     number_of_pages = math.ceil(fetched_bug_fix_pull_requests.total_count/100.00)
     
+    
     for page_number in range(1, number_of_pages + 1):
         fetched_bug_fix_pull_requests = api.search.issues_and_pull_requests(q=query, per_page=100, page=page_number)
         pull_requests = fetched_bug_fix_pull_requests.pop("items")

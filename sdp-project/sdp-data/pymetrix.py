@@ -125,6 +125,7 @@ def analyze_file(path: str) -> dict:
         'BUG': 0 
     }
 
+
 def scan_directory(root: str):
     """
     Varre recursivamente um diretório e processa todos os arquivos .py.
@@ -135,10 +136,12 @@ def scan_directory(root: str):
                 path = os.path.join(dirpath, name)
                 yield analyze_file(path)
 
+
 def save_to_csv(data: list[dict], outcsv: str) -> None:
     """
     Salva a lista de dicionários em um CSV com as chaves como cabeçalho.
     """
+
     if not data:
         raise ValueError("Nenhum dado para salvar")
 

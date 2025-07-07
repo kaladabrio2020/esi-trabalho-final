@@ -1,2 +1,2 @@
-# projeto-final-esi-trabalho-fina
-Trabalho final da cadeira de Engenharia de Sistema Inteligentes
+# Projeto Final da cadeira de Engenharia de Sistemas Inteligentes
+

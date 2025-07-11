@@ -3,7 +3,7 @@ name = "sdp-data"
 version = "0.0.1"
 description = "SDP - Pipeline de Dados"
 authors = [
-    {name = "Lincoln Rocha",email = "lincoln@dc.ufc.br"}
+    {name = "Mateus Sousa do Carmo",email = "mateus.0201@alu.ufc.br"}
 ]
 
 requires-python = ">=3.10"

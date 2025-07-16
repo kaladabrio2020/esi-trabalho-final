@@ -10,10 +10,12 @@
 ```bash
 pip install poetry
 ```
+
 3. Instale as dependências necessárias para rodar a pipeline de modelos: 
 ```bash
 poetry install
 ```
+
 4. Execute a pipeline e dados:
 ```bash
 poetry run python pipeline.py <GitHub Access Token>

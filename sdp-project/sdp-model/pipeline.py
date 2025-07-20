@@ -6,10 +6,11 @@ import os
 from sklearn.svm import LinearSVR
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV, train_test_split, ShuffleSplit
+from sklearn.linear_model import SGDRegressor
 from sklearn import metrics
-from pathlib import Path
-import numpy as np # Importar numpy para lidar com médias
-
+from pathlib import Pat
+import numpy as np 
+# Importar numpy para lidar com médias
 # Configuração do diretório base
 try:
     current_file = Path(__file__).resolve()
@@ -76,16 +77,28 @@ def do_benchmark(grid_search=False, dataset_path=None, cv_criteria="neg_mean_squ
     train_models = {
         'SVR': LinearSVR(random_state=42, max_iter=5000, dual=True), # Aumentado max_iter e setado dual
         'RandomForest': RandomForestRegressor(random_state=42),
+        'SGD': SGDRegressor(random_state=42)
     }
     models = {i: train_models[i] for i in train_models if i in selected_models}
     if not models:
         raise ValueError(f"Nenhum dos modelos selecionados {selected_models} está disponível em {list(train_models.keys())}")
 
-    grid_params_list = {"SVR": {}, "RandomForest": {}}
+    grid_params_list = {"SVR": {}, "RandomForest": {}, 'SGD':{}}
     if grid_search:
         grid_params_list = {
-            "SVR": {"C": [0.1, 1, 10]},
-            "RandomForest": {"n_estimators": [50, 100], "max_depth": [None, 10]}
+            "SVR": {"C": [0.1, 1, 4,10]},
+            "RandomForest": {
+                "n_estimators": [50, 100, 146], 
+                "max_depth": [None, 10],
+                "min_samples_split": [2, 5, 10],
+                "min_samples_leaf": [1, 2, 4]
+                },
+            'SGD':{
+                'loss':['squared_hinge', 'huber', 'epsilon_insensitive', 'squared_epsilon_insensitive'],
+                'penalty':['l1', 'l2', 'elasticnet'],
+                'l1_ratio':[0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95],
+                'alpha':[0.0001, 0.001, 0.01, 0.1, 1, 10],
+            }
         }
     return run_experiment(dataset, X.columns, y.name, models, grid_params_list, cv_criteria)
 
@@ -107,6 +120,8 @@ def build_champion_model(dataset, x_features, y_label, model_info, cv_criteria) 
     save_model(grid_model.best_estimator_, model_info.get("name"), cv_criteria)
     return metrics_scores
 
+
+
 # CORREÇÃO: Removido o parâmetro 'data_balance'
 def make_model(grid_search=False, dataset_path=None, cv_criteria="neg_mean_squared_error", selected_model=None) -> dict:
     """Prepara e chama a construção do modelo campeão."""
@@ -116,12 +131,24 @@ def make_model(grid_search=False, dataset_path=None, cv_criteria="neg_mean_squar
     train_models = {
         'SVR': LinearSVR(random_state=42, max_iter=5000, dual=True),
         'RandomForest': RandomForestRegressor(random_state=42),
+        'SGD': SGDRegressor(random_state=42)
     }
-    grid_params_list = {"SVR": {}, "RandomForest": {}}
+    grid_params_list = {"SVR": {}, "RandomForest": {}, 'SGD':{}}
     if grid_search:
         grid_params_list = {
-            "SVR": {"C": [0.1, 1, 10]},
-            "RandomForest": {"n_estimators": [50, 100], "max_depth": [None, 10]}
+            "SVR": {
+                "C": [0.1, 1, 10]
+                },
+            "RandomForest": {
+                "n_estimators": [50, 100], 
+                "max_depth": [None, 10]
+            },
+            'SGD':{
+                'loss':['squared_hinge', 'huber', 'epsilon_insensitive', 'squared_epsilon_insensitive'],
+                'penalty':['l1', 'l2', 'elasticnet'],
+                'l1_ratio':[0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95],
+                'alpha':[0.0001, 0.001, 0.01, 0.1, 1, 10],
+            }
         }
     model_info = {
         "name": selected_model,

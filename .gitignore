@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 
 MCP/
-amz_ca_price_prediction_dataset.csv
+/amz_ca_price_prediction_dataset.csv
 
 # C extensions
 *.so

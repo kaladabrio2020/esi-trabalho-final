@@ -2,331 +2,196 @@ import pandas
 import pickle
 import logging
 import sys
-
-from sklearn.svm import SVC,LinearSVC
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import GridSearchCV, train_test_split
-from imblearn.over_sampling import SMOTE
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-from sklearn.model_selection import StratifiedKFold
+import os
+from sklearn.svm import LinearSVR
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import GridSearchCV, train_test_split, ShuffleSplit
 from sklearn import metrics
-from sklearn.pipeline import Pipeline
+from pathlib import Path
+import numpy as np # Importar numpy para lidar com médias
+
+# Configuração do diretório base
+try:
+    current_file = Path(__file__).resolve()
+    # Assumindo que o script está em sdp-model e data está no mesmo nível de sdp-project
+    BASE_DIR = current_file.parent.parent.parent 
+except NameError:
+    BASE_DIR = Path('.').resolve()
 
 def load_dataset(dataset_path) -> pandas.DataFrame:
-    """
-    Carrega um arquivo CSV com métricas extraídas e rótulos associados.
+    """Carrega um arquivo CSV."""
+    path = os.path.join(BASE_DIR, 'data', dataset_path)
+    if not os.path.exists(path):
+        # Fallback para o caso da estrutura de pastas ser diferente
+        path = os.path.join(os.path.dirname(sys.argv[0]), dataset_path)
+    print(f"Tentando carregar dataset de: {path}")
+    return pandas.read_csv(path)
 
-    Parameters:
-        dataset_path (str): Caminho para o arquivo CSV do dataset.
-
-    Returns:
-        sdp_dataset (pandas.DataFrame): DataFrame com os dados carregados.
-    """
-    sdp_dataset = pandas.read_csv(dataset_path,
-                                  index_col=None,
-                                  header=0,
-                                  delimiter=';')
-    
-    return sdp_dataset
-
-
-def save_model(model, model_name, data_balance, cv_criteria):
-    """
-    Salva o modelo fornecido em um arquivo pickle.
-
-    Parameters:
-        model (obj): Instância do modelo a ser salva.
-        model_name (str): Nome identificador do modelo.
-        data_balance (str): Método de balanceamento de dados utilizado.
-        cv_criteria (str): Critério de validação cruzada utilizado.
-    """      
-    with open(f"model-{model_name}-{cv_criteria.upper()}-{data_balance}.pkl", "wb") as model_file:
+def save_model(model, model_name, cv_criteria):
+    """Salva o modelo treinado."""
+    with open(f"model-{model_name}-{cv_criteria.replace('_', '-')}.pkl", "wb") as model_file:
         pickle.dump(model, model_file)
 
-
-
 def load_model(file_model_path):
-    """
-    Carrega um modelo previamente salvo em um arquivo pickle.
-
-    Parameters:
-        file_model_path (str): Caminho para o arquivo .pkl contendo o modelo.
-
-    Returns:
-        model (obj): O modelo carregado.
-    """    
+    """Carrega um modelo salvo."""
     return pickle.load(open(file_model_path, 'rb'))
 
-def extract_model_metrics_scores(y_test, y_pred)  -> dict: 
-    """
-    Extrai métricas de desempenho comparando predições e valores reais.
+def extract_model_metrics_scores(y_test, y_pred) -> dict:
+    """Extrai métricas de regressão."""
+    return {
+        "mean_absolute_error": metrics.mean_absolute_error(y_test, y_pred),
+        "mean_squared_error": metrics.mean_squared_error(y_test, y_pred),
+        "r2_score": metrics.r2_score(y_test, y_pred)
+    }
 
-    Parameters:
-        y_test (array-like): Rótulos reais do conjunto de teste.
-        y_pred (array-like): Rótulos previstos pelo modelo.
-
-    Returns:
-        scores (dict): Dicionário com métricas como acurácia, ROC-AUC, F1, etc.
-    """  
-    scores = {"accuracy_score": metrics.accuracy_score(y_test, y_pred),
-              "roc_auc_score": metrics.roc_auc_score(y_test, y_pred),
-              "f1_score": metrics.f1_score(y_test, y_pred),
-              "precision_score": metrics.precision_score(y_test, y_pred),
-              "recall_score": metrics.recall_score(y_test, y_pred),
-              "matthews_corrcoef": metrics.matthews_corrcoef(y_test, y_pred),
-              "brier_score_loss": metrics.brier_score_loss(y_test, y_pred),
-              "confusion_matrix": metrics.confusion_matrix(y_test, y_pred),
-              "classification_report": metrics.classification_report(y_test, y_pred)}
-    return scores
-
-
-def run_experiment(dataset, x_features, y_label, data_balance, models, grid_params_list, cv_criteria) -> dict:
-    """
-    Executa benchmark de diversos modelos usando validação cruzada estratificada.
-
-    Parameters:
-        dataset (pandas.DataFrame): DataFrame contendo as features e rótulos.
-        x_features (list of str): Lista com nomes das colunas das features.
-        y_label (str): Nome da coluna do rótulo.
-        data_balance (str): Método para balanceamento de dados ('SMOTE' ou outro).
-        models (dict): Dicionário nome->instância dos modelos a avaliar.
-        grid_params_list (dict): Dicionário nome->parâmetros do GridSearchCV.
-        cv_criteria (str): Critério de scoring para o GridSearchCV (ex: 'roc_auc').
-
-    Returns:
-        fold_results (dict): Dicionário onde cada chave é o índice do fold e o valor
-                             é outro dicionário com informações de cada modelo
-                             ('score' e 'best_estimator').
-    """    
+def run_experiment(dataset, x_features, y_label, models, grid_params_list, cv_criteria) -> dict:
+    """Executa benchmark de modelos."""
     X = dataset[x_features]
     y = dataset[y_label]
-
-    skf = StratifiedKFold(n_splits=10)
-    skf.get_n_splits(X, y)
+    cv_splitter = ShuffleSplit(n_splits=5, test_size=0.25, random_state=42)
     models_info_per_fold = {}
-    
-    for i, (train_index, test_index) in enumerate(skf.split(X, y)):
+
+    for i, (train_index, test_index) in enumerate(cv_splitter.split(X, y)):
         X_train, X_test = X.iloc[train_index], X.iloc[test_index]
         y_train, y_test = y.iloc[train_index], y.iloc[test_index]
-
-        if data_balance=='SMOTE':
-            smote = SMOTE()
-            X_train, y_train = smote.fit_resample(X_train, y_train)
-        
         models_info = {}
-        for model in models:
-            grid_model = GridSearchCV(models[model], grid_params_list[model], cv=5, scoring=cv_criteria)                        
+        for model_name, model_instance in models.items():
+            print(f"  - Treinando {model_name} no fold {i+1}...")
+            grid_model = GridSearchCV(model_instance, grid_params_list[model_name], cv=5, scoring=cv_criteria, n_jobs=-1)
             grid_model.fit(X_train, y_train)
             y_pred = grid_model.predict(X_test)
             metrics_scores = extract_model_metrics_scores(y_test, y_pred)
-            models_info[model] = {
+            models_info[model_name] = {
                 "score": metrics_scores,
                 "best_estimator": grid_model.best_estimator_
-            }            
-
+            }
         models_info_per_fold[i] = models_info
-
     return models_info_per_fold
 
-def do_benchmark(grid_search=False, data_balance="SMOTE", dataset_path=None, cv_criteria="roc_auc", selected_models=["LRC", "RFC", "SVC"]) -> dict:    
-    """
-    Orquestra o benchmark de modelos selecionados a partir de um arquivo de dados.
+def do_benchmark(grid_search=False, dataset_path=None, cv_criteria="neg_mean_squared_error", selected_models=["SVR", "RandomForest"]) -> dict:
+    """Orquestra o benchmark."""
+    dataset = load_dataset(dataset_path)
+    X = dataset.drop(['date', 'price'], axis=1, errors='ignore')
+    y = dataset['price']
+    train_models = {
+        'SVR': LinearSVR(random_state=42, max_iter=5000, dual=True), # Aumentado max_iter e setado dual
+        'RandomForest': RandomForestRegressor(random_state=42),
+    }
+    models = {i: train_models[i] for i in train_models if i in selected_models}
+    if not models:
+        raise ValueError(f"Nenhum dos modelos selecionados {selected_models} está disponível em {list(train_models.keys())}")
 
-    Parameters:
-        grid_search (bool): Se True, utiliza GridSearchCV para otimização de hiperparâmetros.
-        data_balance (str): Método de balanceamento de dados ('SMOTE' ou outro).
-        dataset_path (str): Caminho para o arquivo CSV do dataset.
-        cv_criteria (str): Critério de scoring para validação cruzada (ex: 'roc_auc').
-        selected_models (list of str): Lista de chaves dos modelos a serem treinados.
-
-    Returns:
-        fold_results (dict): Resultado do benchmark para cada fold.
-    """    
-    x_features = ["LOC", "COM", "BLK", "NOF", "NOC", "APF", "AMC", "NER", "NEH", "CYC", "MAD"]
-    y_label = "BUG"
-
-    dataset =  load_dataset(dataset_path)
-    
-    train_models = {"SVC": LinearSVC(),
-                    "LRC": LogisticRegression(),
-                    "RFC": RandomForestClassifier()}
-
-    models = {i:train_models[i] for i in train_models if i in selected_models}
-              
-    if grid_search:            
+    grid_params_list = {"SVR": {}, "RandomForest": {}}
+    if grid_search:
         grid_params_list = {
-                            "LRC":{"C":[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10],
-                                   "penalty":["l1","l2"],
-                                   "max_iter":[10**7],
-                                   "fit_intercept":[True],
-                                   "solver":["liblinear"]},
+            "SVR": {"C": [0.1, 1, 10]},
+            "RandomForest": {"n_estimators": [50, 100], "max_depth": [None, 10]}
+        }
+    return run_experiment(dataset, X.columns, y.name, models, grid_params_list, cv_criteria)
 
-                            "RFC":{"n_estimators":[5,30,50,75, 100, 150, 200],
-                                   "max_depth": [4,5,6,7,8,None]},
-            
-                            "SVC":{"C":[0.01, 0.05, 0.1, 0.5, 1, 5, 10],
-                                   "max_iter":[10**7]}                             
-                            }
-    else:
-        grid_params_list = {"LRC":{}, "RFC":{}, "SVC":{}}
-    
-    fold_results = run_experiment(dataset=dataset, x_features=x_features, 
-                                  y_label=y_label, data_balance=data_balance, 
-                                  models=models, grid_params_list=grid_params_list, 
-                                  cv_criteria=cv_criteria)
-
-    return fold_results
-
-def build_champion_model(dataset, x_features, y_label, data_balance, model_info, cv_criteria) -> dict:
-    """
-    Cria o modelo final (champion model) a partir de divisão treino/teste e balanceamento.
-
-    Parameters:
-        dataset (pandas.DataFrame): DataFrame com features e rótulos completos.
-        x_features (list of str): Nomes das colunas das features.
-        y_label (str): Nome da coluna do rótulo.
-        data_balance (str): Método de balanceamento de dados ('SMOTE' ou outro).
-        model_info (dict): Informações sobre o modelo ('instance', 'grid_params_list', 'name').
-        cv_criteria (str): Critério de scoring para validação cruzada (ex: 'roc_auc').
-
-    Returns:
-        metrics_scores (dict): Métricas de desempenho do modelo final.
-    """    
+# CORREÇÃO: Removido o parâmetro 'data_balance' que não é usado em regressão
+def build_champion_model(dataset, x_features, y_label, model_info, cv_criteria) -> dict:
+    """Constrói o modelo campeão."""
     X = dataset[x_features]
     y = dataset[y_label]
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=0)
-    if data_balance=='SMOTE':
-        smote = SMOTE()
-        X_train, y_train = smote.fit_resample(X_train, y_train)        
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
     
-    grid_model = GridSearchCV(model_info.get("instance"), model_info.get("grid_params_list"), cv=5, scoring=cv_criteria)                        
+    # Validação para garantir que o modelo não é None
+    if model_info.get("instance") is None:
+        raise ValueError(f"A instância do modelo para '{model_info.get('name')}' é None. Verifique os nomes dos modelos.")
+
+    grid_model = GridSearchCV(model_info.get("instance"), model_info.get("grid_params_list"), cv=5, scoring=cv_criteria, n_jobs=-1)
     grid_model.fit(X_train, y_train)
     y_pred = grid_model.predict(X_test)
     metrics_scores = extract_model_metrics_scores(y_test, y_pred)
-
-    save_model(grid_model.best_estimator_, model_info.get("name"), data_balance, cv_criteria)
-
+    save_model(grid_model.best_estimator_, model_info.get("name"), cv_criteria)
     return metrics_scores
 
-
-def make_model(grid_search=False, data_balance="SMOTE", dataset_path=None, cv_criteria="roc_auc", selected_model=None) -> dict:    
-    """
-    Constrói e avalia o modelo selecionado como champion.
-
-    Parameters:
-        grid_search (bool): Se True, usa GridSearchCV para otimizar hiperparâmetros.
-        data_balance (str): Método de balanceamento de dados ('SMOTE' ou outro).
-        dataset_path (str): Caminho para o arquivo CSV do dataset.
-        cv_criteria (str): Critério de scoring para validação cruzada (ex: 'roc_auc').
-        selected_model (str): Chave do modelo a treinar (e.g., 'LRC', 'RFC', 'SVC').
-
-    Returns:
-        metrics_scores (dict): Métricas de desempenho do modelo final.
-    """    
-    x_features = ["LOC", "COM", "BLK", "NOF", "NOC", "APF", "AMC", "NER", "NEH", "CYC", "MAD"]
-    y_label = "BUG"
-
-    dataset =  load_dataset(dataset_path)
-    
-    train_models = {"SVC": LinearSVC(),
-                    "LRC": LogisticRegression(),
-                    "RFC": RandomForestClassifier()}
-
+# CORREÇÃO: Removido o parâmetro 'data_balance'
+def make_model(grid_search=False, dataset_path=None, cv_criteria="neg_mean_squared_error", selected_model=None) -> dict:
+    """Prepara e chama a construção do modelo campeão."""
+    dataset = load_dataset(dataset_path)
+    x_features = dataset.drop(['price'], axis=1, errors='ignore').columns
+    y_label = 'price'
+    train_models = {
+        'SVR': LinearSVR(random_state=42, max_iter=5000, dual=True),
+        'RandomForest': RandomForestRegressor(random_state=42),
+    }
+    grid_params_list = {"SVR": {}, "RandomForest": {}}
     if grid_search:
         grid_params_list = {
-                            "LRC":{"C":[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10],
-                                   "penalty":["l1","l2"],
-                                   "max_iter":[10**7],
-                                   "fit_intercept":[True],
-                                   "solver":["liblinear"]},
-
-                            "RFC":{"n_estimators":[5,30,50,75, 100, 150, 200],
-                                   "max_depth": [4,5,6,7,8,None]},
-            
-                            "SVC":{"C":[0.01, 0.05, 0.1, 0.5, 1, 5, 10],
-                                   "max_iter":[10**7]}                             
-                            }
-    else:
-        grid_params_list = {"LRC":{}, "RFC":{}, "SVC":{}}
-    
+            "SVR": {"C": [0.1, 1, 10]},
+            "RandomForest": {"n_estimators": [50, 100], "max_depth": [None, 10]}
+        }
     model_info = {
         "name": selected_model,
         "instance": train_models.get(selected_model),
-        "grid_params_list":grid_params_list.get(selected_model)
-    }    
+        "grid_params_list": grid_params_list.get(selected_model)
+    }
+    return build_champion_model(dataset, x_features, y_label, model_info, cv_criteria)
 
-    metrics_scores = build_champion_model(dataset, x_features, y_label, data_balance, 
-                                          model_info, cv_criteria)
-    return metrics_scores
+def select_best_model(fold_results) -> str:
+    """Seleciona o melhor modelo com base no menor MSE médio."""
+    # Verifica se fold_results não está vazio
+    if not fold_results or not fold_results[0]:
+        raise ValueError("O dicionário de resultados do benchmark (fold_results) está vazio. Nenhum modelo foi treinado.")
 
-def select_best_model(fold_results, selected_models=["LRC", "RFC", "SVC"]):
-    """
-    Seleciona o modelo com maior média de ROC-AUC a partir dos resultados por fold.
+    avg_scores = {}
+    # Pega os nomes dos modelos do primeiro fold
+    model_names = fold_results[0].keys()
+    for model_name in model_names:
+        mse_scores = [fold_results[fold][model_name]['score']['mean_squared_error'] for fold in fold_results]
+        avg_scores[model_name] = np.mean(mse_scores)
 
-    Parameters:
-        fold_results (dict): Resultado do benchmark, dicionário de folds->modelos.
-        selected_models (list of str): Modelos considerados (não usado diretamente no cálculo).
-
-    Returns:
-        best_model_name (str): Nome do modelo com maior média de ROC-AUC.
-    """    
-    results = {}
-    for fold in fold_results.keys():
-        for model_name in fold_results.get(fold).keys():
-            roc_auc = fold_results[fold][model_name]["score"]["roc_auc_score"]
-            if results.get(model_name) is None:
-                results[model_name] =  { "roc_auc": []}
-                results[model_name]["roc_auc"].append(roc_auc)
-            else:
-                results[model_name]["roc_auc"].append(roc_auc)
-
-    best_model_score = 0
-    best_model_name = None
-    for  key in results.keys():
-        avg_roc_auc = sum(results[key]["roc_auc"])/len(results[key]["roc_auc"])
-        if avg_roc_auc > best_model_score:
-            best_model_score = avg_roc_auc
-            best_model_name = key
-    
+    print("Média do Erro Quadrático (MSE) por modelo:", avg_scores)
+    best_model_name = min(avg_scores, key=avg_scores.get)
     return best_model_name
-    
+
 def start(dataset_path):
+    """Função principal que executa o pipeline."""
     logger = logging.getLogger(__name__)
-    logging.basicConfig(filename='pipeline.log', encoding='utf-8', level=logging.DEBUG)
-    logger.debug("[Step-1] Realizando Benchmark")
-    fold_results = do_benchmark(grid_search=True, 
-                                dataset_path=dataset_path, 
-                                selected_models=["LRC", "RFC"])
+    logging.basicConfig(filename='pipeline_regression.log', filemode='w', encoding='utf-8', level=logging.DEBUG)
+    
+    logger.info("[Passo 1] Realizando Benchmark dos Modelos")
+    print("[Passo 1] Realizando Benchmark dos Modelos...")
+    
+    # CORREÇÃO: Usar os nomes corretos dos modelos de regressão
+    fold_results = do_benchmark(grid_search=True,
+                                dataset_path=dataset_path,
+                                selected_models=["SVR", "RandomForest"])
+
     for fold, models_info in fold_results.items():
-            for model_name, info in models_info.items():
-                sc = info['score']
-                logger.debug(
-                    f"Fold {fold} - Model {model_name}: "
-                    f"ROC-AUC={sc['roc_auc_score']}, F1={sc['f1_score']}, "
-                    f"Acc={sc['accuracy_score']}, Pre={sc['precision_score']}, Rec={sc['recall_score']}"
-                )
-    
-    logger.debug("\n[Step-2] Selecionando Melhor Modelo")
+        for model_name, info in models_info.items():
+            sc = info['score']
+            logger.debug(f"Fold {fold+1} - Modelo {model_name}: MSE={sc['mean_squared_error']:.4f}, MAE={sc['mean_absolute_error']:.4f}, R2={sc['r2_score']:.4f}")
+
+    logger.info("\n[Passo 2] Selecionando o Melhor Modelo")
+    print("\n[Passo 2] Selecionando o Melhor Modelo...")
     best_model_name = select_best_model(fold_results)
-    logger.debug(f"\nBest Model {best_model_name}")
+    logger.info(f"Melhor Modelo Selecionado: {best_model_name}")
+    print(f"Melhor Modelo Selecionado: {best_model_name}")
+
+    logger.info("\n[Passo 3] Criando o Modelo Campeão Final")
+    print("\n[Passo 3] Criando o Modelo Campeão Final...")
     
-    logger.debug("\n[Step-3] Criando o Modelo Final")
-    metric_scores = make_model(grid_search=True, 
-                               dataset_path=dataset_path, 
+    # CORREÇÃO: Removido o parâmetro 'data_balance'
+    metric_scores = make_model(grid_search=True,
+                               dataset_path=dataset_path,
                                selected_model=best_model_name)
     sc = metric_scores
-    logger.debug(
-        f"Champion {best_model_name}: ROC-AUC={sc['roc_auc_score']}, "
-        f"F1={sc['f1_score']}, Acc={sc['accuracy_score']}, "
-        f"Pre={sc['precision_score']}, Rec={sc['recall_score']}"
+    final_log_message = (
+        f"Métricas do Modelo Campeão '{best_model_name}':\n"
+        f"  - Mean Squared Error (MSE): {sc['mean_squared_error']:.4f}\n"
+        f"  - Mean Absolute Error (MAE): {sc['mean_absolute_error']:.4f}\n"
+        f"  - R² Score: {sc['r2_score']:.4f}"
     )
+    logger.info(final_log_message)
+    print(final_log_message)
 
-    
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         dataset_path = str(sys.argv[1])
         start(dataset_path)
     else:
-        print("Você deve prover o caminho para o dataset.")    
+        print("Erro: Você deve prover o caminho para o dataset como um argumento.")
+        print("Exemplo: python seu_script.py data_transformed.csv")

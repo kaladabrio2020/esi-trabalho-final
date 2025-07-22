@@ -4,7 +4,6 @@ from sdp.service import SDPService
 # Inicializa o app Flask
 app = Flask(__name__)
 
-# Caminho do modelo treinado (ajuste se necessário)
 MODEL_PATH = "./model-RFC-ROC_AUC-SMOTE.pkl"
 sdp_service = SDPService(MODEL_PATH)
 

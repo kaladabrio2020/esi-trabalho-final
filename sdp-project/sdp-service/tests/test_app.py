@@ -6,7 +6,7 @@ class TestApp(unittest.TestCase):
         self.client = app.test_client()
 
     def test_predict_buggy(self):
-        data_tuple = [559, 47, 70, 9, 2, 0.89, 3.0, 3, 2, 48, 13]
+        data_tuple = [3.0,1,-0.828975926576955,-0.19252659249677878,-0.5644251484191736,-0.6714132102320955,1955,2005,0,1,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0,0,-0.010980263,-0.005899675,-0.0029756394,0.0061707986,-0.013852177]
         data_tuple = [float(element) for element in data_tuple]
         response = self.client.post('http://127.0.0.1:5000/predict', json={'data_tuple': data_tuple})
         self.assertEqual(response.status_code, 200)

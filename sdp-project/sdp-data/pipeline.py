@@ -7,6 +7,8 @@ import logging
 import keras 
 import tensorflow as tf
 import json
+
+import numpy as np
 # Configuração básica do logging para acompanhar o processo
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -118,6 +120,30 @@ def transform_and_prepare_data(raw_csv_path: str) -> str:
             data[i] = scaler.fit_transform(data[[i]].astype(float).values)
         return data
     
+    from sklearn.mixture import GaussianMixture
+    def gaussian_outliers(data):
+        X = data['price'].values.reshape(-1, 1)
+
+        logging.info("Aplicando gaussian_outliers para a coluna price...")
+        gm = GaussianMixture(n_components=1)
+        gm.fit(X)
+
+        densidade = gm.score_samples(X)
+        logging.info(f'Percentil : 4% = das instancias serão sinalizadas como outliers')
+        densidade_threshold = np.percentile(densidade, 4)
+
+        # Máscara booleana para identificar outliers
+        outlier_mask = densidade < densidade_threshold
+
+        # Índices dos outliers
+        outlier_indices = data.index[outlier_mask]
+
+        logging.info(f'Quantidade de outliers: {len(outlier_indices)} que serão removidos')
+
+
+        # Retorna DataFrame sem os outliers
+        return data.drop(index=outlier_indices)
+
 
     # Função que remove casas com preços negativos
     def remove_casa_free(df):
@@ -125,7 +151,7 @@ def transform_and_prepare_data(raw_csv_path: str) -> str:
         
         index = df[df['price'] <= 0].index
         
-        logging.info(f"Instancias removidas: {len(index)}")
+        logging.info(f"Instancias removidas: {len(index)}\n")
         return df.drop(index=index)
     
     def arrendondamento(data):
@@ -135,12 +161,12 @@ def transform_and_prepare_data(raw_csv_path: str) -> str:
         
     def dummies(data):
         
-        logging.info("Criando dummies para as colunas 'floors', 'waterfront', 'view' e 'condition'")
+        logging.info("Criando dummies para as colunas 'floors', 'waterfront', 'view' e 'condition'\n")
         return pd.get_dummies(data=data, columns=['floors', 'waterfront', 'view', 'condition'], dtype=int)
     
     import numpy as np
     def transformacao_log(data):
-        logging.info("Aplicando transformação log para a coluna 'price'")
+        logging.info("Aplicando transformação log para a coluna 'price'\n")
         data['price'] = np.log1p(data['price'])
         logging.info(" => Justificativa da transformação https://scikit-learn.org/stable/auto_examples/compose/plot_transformed_target.html")
         return data
@@ -160,8 +186,20 @@ def transform_and_prepare_data(raw_csv_path: str) -> str:
         vectorizer.adapt(data['location'].values)
         tokenizer_text = vectorizer(data['location'].values)
 
-        return tokenizer_text
-    
+        return tokenizer_text, vectorizer.vocabulary_size()
+    def global_mean(token, input,embedding_dim=5):
+        """Aplica GlobalAveragePooling1D para reduzir a dimensionalidade do token."""
+        ebedding_dim = 5
+        embedding = keras.layers.Embedding( 
+            input_dim=input,
+            output_dim=embedding_dim,
+        )
+        token = embedding(token)
+
+        # Aplicando GlobalAveragePooling1D
+        token = keras.layers.GlobalAveragePooling1D()(token)
+
+        return token.numpy()
     def to_colunmns(data, subset):
         logging.info("Criando colunas de location para char_token_n..")
         for i in range(subset.shape[1]):
@@ -172,8 +210,10 @@ def transform_and_prepare_data(raw_csv_path: str) -> str:
     data = padronizacao(data)
     data = arrendondamento(data)
     data = dummies(data)
+    data = gaussian_outliers(data)
     data = transformacao_log(data)
-    subset = tokenizer_text(data)
+    subset, vocabulary = tokenizer_text(data)
+    subset = global_mean(subset, vocabulary)
     data  = to_colunmns(data, subset)
     data = remove_columns(data, ['date', 'street', 'city', 'statezip', 'location', 'country'])
 
@@ -215,4 +255,5 @@ def start_pipeline():
 
 
 if __name__ == "__main__":
+    print(BASE_DIR)
     start_pipeline()

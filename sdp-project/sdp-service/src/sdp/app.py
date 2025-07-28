@@ -4,7 +4,7 @@ from sdp.service import SDPService
 # Inicializa o app Flask
 app = Flask(__name__)
 
-MODEL_PATH = "./model-RFC-ROC_AUC-SMOTE.pkl"
+MODEL_PATH = "./model-RandomForest-neg-mean-squared-error.pkl"
 sdp_service = SDPService(MODEL_PATH)
 
 @app.route("/", methods=["GET"])
@@ -13,7 +13,9 @@ def home():
         "mensagem": "Serviço de predição de defeitos está operacional.",
         "rota_predicao": "/predict",
         "formato_esperado": {
-            "data_tuple": [100, 20, 15, 5, 2, 3, 10, 7, 5, 4, 1]
+            "data_tuple": [3.0, 1, -0.8289, -0.1925, -0.5644, -0.6714, 1955, 2005,
+                0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0,
+                0, 0, 0, 1, 0, 0, -0.0109, -0.0058, -0.0029, 0.0061, -0.0138]
         }
     })
 
@@ -24,8 +26,9 @@ def predict():
         data_tuple = data.get("data_tuple")
 
         # Validação básica
-        if not data_tuple or not isinstance(data_tuple, list) or len(data_tuple) != 11:
-            return jsonify({"error": "data_tuple deve ser uma lista com 11 valores numéricos."}), 400
+        if not data_tuple or not isinstance(data_tuple, list) or len(data_tuple) != 31:
+            return jsonify({"error": "data_tuple deve ser uma lista com 31 valores numéricos."}), 400
+
 
         result = sdp_service.predict(data_tuple)
         return jsonify({"result": [int(result[0])]})

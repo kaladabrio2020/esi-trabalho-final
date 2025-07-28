@@ -1,4 +1,4 @@
-import pandas
+import pandas as pd
 import pickle
 import logging
 import sys
@@ -6,9 +6,9 @@ import os
 from sklearn.svm import LinearSVR
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV, train_test_split, ShuffleSplit
-from sklearn.linear_model import SGDRegressor
+from sklearn.linear_model import SGDRegressor, RANSACRegressor, LinearRegression
 from sklearn import metrics
-from pathlib import Pat
+from pathlib import Path
 import numpy as np 
 # Importar numpy para lidar com médias
 # Configuração do diretório base
@@ -19,18 +19,22 @@ try:
 except NameError:
     BASE_DIR = Path('.').resolve()
 
-def load_dataset(dataset_path) -> pandas.DataFrame:
+def load_dataset(dataset_path) -> pd.DataFrame:
     """Carrega um arquivo CSV."""
     path = os.path.join(BASE_DIR, 'data', dataset_path)
     if not os.path.exists(path):
         # Fallback para o caso da estrutura de pastas ser diferente
         path = os.path.join(os.path.dirname(sys.argv[0]), dataset_path)
-    print(f"Tentando carregar dataset de: {path}")
-    return pandas.read_csv(path)
+    print(f"Tentando carregar dataset de: {str(BASE_DIR)+'\\'+path}")
+    return pd.read_csv(str(BASE_DIR)+'\\'+path)
 
 def save_model(model, model_name, cv_criteria):
     """Salva o modelo treinado."""
     with open(f"model-{model_name}-{cv_criteria.replace('_', '-')}.pkl", "wb") as model_file:
+        pickle.dump(model, model_file)
+
+    # Salva o modelo no serviço
+    with open(str(BASE_DIR)+'\\'+'sdp-project\\sdp-service'+'\\'+f"model-{model_name}-{cv_criteria.replace('_', '-')}.pkl", "wb") as model_file:
         pickle.dump(model, model_file)
 
 def load_model(file_model_path):
@@ -75,7 +79,7 @@ def do_benchmark(grid_search=False, dataset_path=None, cv_criteria="neg_mean_squ
     X = dataset.drop(['date', 'price'], axis=1, errors='ignore')
     y = dataset['price']
     train_models = {
-        'SVR': LinearSVR(random_state=42, max_iter=5000, dual=True), # Aumentado max_iter e setado dual
+        'RANSC': RANSACRegressor(estimator=LinearRegression()),
         'RandomForest': RandomForestRegressor(random_state=42),
         'SGD': SGDRegressor(random_state=42)
     }
@@ -83,10 +87,9 @@ def do_benchmark(grid_search=False, dataset_path=None, cv_criteria="neg_mean_squ
     if not models:
         raise ValueError(f"Nenhum dos modelos selecionados {selected_models} está disponível em {list(train_models.keys())}")
 
-    grid_params_list = {"SVR": {}, "RandomForest": {}, 'SGD':{}}
+    grid_params_list = {"RANSC": {}, "RandomForest": {}, 'SGD':{}}
     if grid_search:
         grid_params_list = {
-            "SVR": {"C": [0.1, 1, 4,10]},
             "RandomForest": {
                 "n_estimators": [50, 100, 146], 
                 "max_depth": [None, 10],
@@ -98,9 +101,27 @@ def do_benchmark(grid_search=False, dataset_path=None, cv_criteria="neg_mean_squ
                 'penalty':['l1', 'l2', 'elasticnet'],
                 'l1_ratio':[0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95],
                 'alpha':[0.0001, 0.001, 0.01, 0.1, 1, 10],
+            },
+            "RANSC":{
+                'max_trials': [100, 200, 300],
+                'max_skips': [3, 6, 9],
+                'residual_threshold': [0.01, 0.05, 0.1]
             }
         }
     return run_experiment(dataset, X.columns, y.name, models, grid_params_list, cv_criteria)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # CORREÇÃO: Removido o parâmetro 'data_balance' que não é usado em regressão
 def build_champion_model(dataset, x_features, y_label, model_info, cv_criteria) -> dict:
@@ -122,6 +143,16 @@ def build_champion_model(dataset, x_features, y_label, model_info, cv_criteria) 
 
 
 
+
+
+
+
+
+
+
+
+
+
 # CORREÇÃO: Removido o parâmetro 'data_balance'
 def make_model(grid_search=False, dataset_path=None, cv_criteria="neg_mean_squared_error", selected_model=None) -> dict:
     """Prepara e chama a construção do modelo campeão."""
@@ -129,16 +160,13 @@ def make_model(grid_search=False, dataset_path=None, cv_criteria="neg_mean_squar
     x_features = dataset.drop(['price'], axis=1, errors='ignore').columns
     y_label = 'price'
     train_models = {
-        'SVR': LinearSVR(random_state=42, max_iter=5000, dual=True),
+        'RANSC': RANSACRegressor(estimator=LinearRegression()),
         'RandomForest': RandomForestRegressor(random_state=42),
         'SGD': SGDRegressor(random_state=42)
     }
     grid_params_list = {"SVR": {}, "RandomForest": {}, 'SGD':{}}
     if grid_search:
         grid_params_list = {
-            "SVR": {
-                "C": [0.1, 1, 10]
-                },
             "RandomForest": {
                 "n_estimators": [50, 100], 
                 "max_depth": [None, 10]
@@ -148,6 +176,11 @@ def make_model(grid_search=False, dataset_path=None, cv_criteria="neg_mean_squar
                 'penalty':['l1', 'l2', 'elasticnet'],
                 'l1_ratio':[0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95],
                 'alpha':[0.0001, 0.001, 0.01, 0.1, 1, 10],
+            },
+            "RANSC":{
+                'max_trials': [100, 200, 300],
+                'max_skips': [3, 6, 9],
+                'residual_threshold': [0.01, 0.05, 0.1]
             }
         }
     model_info = {
@@ -156,6 +189,19 @@ def make_model(grid_search=False, dataset_path=None, cv_criteria="neg_mean_squar
         "grid_params_list": grid_params_list.get(selected_model)
     }
     return build_champion_model(dataset, x_features, y_label, model_info, cv_criteria)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def select_best_model(fold_results) -> str:
     """Seleciona o melhor modelo com base no menor MSE médio."""
@@ -173,6 +219,15 @@ def select_best_model(fold_results) -> str:
     print("Média do Erro Quadrático (MSE) por modelo:", avg_scores)
     best_model_name = min(avg_scores, key=avg_scores.get)
     return best_model_name
+
+
+
+
+
+
+
+
+
 
 def start(dataset_path):
     """Função principal que executa o pipeline."""

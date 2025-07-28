@@ -13,7 +13,9 @@ def home():
         "mensagem": "Serviço de predição de defeitos está operacional.",
         "rota_predicao": "/predict",
         "formato_esperado": {
-            "data_tuple": [100, 20, 15, 5, 2, 3, 10, 7, 5, 4, 1]
+            "data_tuple": [3.0, 1, -0.8289, -0.1925, -0.5644, -0.6714, 1955, 2005,
+                0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0,
+                0, 0, 0, 1, 0, 0, -0.0109, -0.0058, -0.0029, 0.0061, -0.0138]
         }
     })
 

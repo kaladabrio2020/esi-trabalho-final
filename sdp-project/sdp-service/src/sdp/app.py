@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
-from sdp.service import SDPService
-
+from service import SDPService
+import numpy as np
 # Inicializa o app Flask
 app = Flask(__name__)
 
@@ -31,7 +31,7 @@ def predict():
 
 
         result = sdp_service.predict(data_tuple)
-        return jsonify({"result": [int(result[0])]})
+        return jsonify({"result": [int(np.expm1(result[0]))]})
     except Exception as e:
         print("Erro:", e)
         return jsonify({'error': 'Erro interno ao processar predição.'}), 500

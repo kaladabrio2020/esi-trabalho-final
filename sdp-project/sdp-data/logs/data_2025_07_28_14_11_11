@@ -1,0 +1,11 @@
+2025-07-28 14:11:11,844 - INFO - =============================================
+2025-07-28 14:11:11,865 - INFO - INICIANDO O PIPELINE DE DADOS - PREÇOS DE IMÓVEIS
+2025-07-28 14:11:11,865 - INFO - =============================================
+2025-07-28 14:11:11,866 - INFO - Iniciando o download do dataset: shree1992/housedata
+
+2025-07-28 14:11:11,867 - INFO - Pegando o token do Kaggle
+
+2025-07-28 14:11:14,083 - INFO - Token do Kaggle pegado com sucesso.
+
+2025-07-28 14:11:16,089 - INFO - Download e descompactação concluídos com sucesso.
+

@@ -1,19 +1,15 @@
 [project]
 name = "sdp-model"
-version = "0.0.1"
-description = "SDP - Pipeline de Modelos"
+version = "1.1.1"
+description = "Finalização do projeto final da cadeira de ESI"
 authors = [
-    {name = "Lincoln Rocha",email = "lincoln@dc.ufc.br"}
+    {name = "Mateus Sousa do Carmo",email = "mateus.1090ptbr0@gmail.com"}
 ]
-
-requires-python = ">=3.10"
+license = {text = "None"}
+readme = "README.md"
+requires-python = ">=3.12"
 dependencies = [
-    "pandas (>=2.3.0,<3.0.0)",
-    "scikit-learn (>=1.2,<1.7)",
-    "imbalanced-learn (>=0.13.0)"
 ]
-
-[tool.poetry]
 
 
 [build-system]

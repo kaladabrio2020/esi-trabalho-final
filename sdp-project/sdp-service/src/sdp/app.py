@@ -112,7 +112,6 @@ def train_model():
         params = data.get("params") if data else {}
         
         result = sdp_service.train_new_model(params)
-        print(result)
         return jsonify(result), 200
     except Exception as e:
         return jsonify({'error': f'Erro ao treinar o modelo: {str(e)}'}), 500

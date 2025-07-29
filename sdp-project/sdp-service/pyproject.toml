@@ -1,21 +1,15 @@
 [project]
 name = "sdp-service"
-version = "0.0.1"
-description = "SDP - Service"
+version = "1.1.1"
+description = ""
 authors = [
-    {name = "Lincoln Rocha",email = "lincoln@dc.ufc.br"}
+    {name = "Mateus Sousa do Carmo",email = "mateus.1090ptbr0@gmail.com"}
 ]
-
-requires-python = ">=3.10"
+readme = "README.md"
+requires-python = ">=3.12"
 dependencies = [
-    "flask (>=3.1.1,<4.0.0)",
-    "pandas (>=2.3.0,<3.0.0)",
-    "scikit-learn (>=1.2,<1.7)",
-    "imbalanced-learn (>=0.13.0)"
+    "requests (>=2.32.4,<3.0.0)"
 ]
-
-[tool.poetry]
-packages = [{include = "sdp", from = "src"}]
 
 
 [build-system]

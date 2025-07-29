@@ -1,19 +1,16 @@
 [project]
 name = "sdp-data"
-version = "0.0.1"
-description = "SDP - Pipeline de Dados"
+version = "1.1.1"
+description = "Finalização do projeto final de ESI"
 authors = [
-    {name = "Mateus Sousa do Carmo",email = "mateus.0201@alu.ufc.br"}
+    {name = "Mateus Sousa do Carmo",email = "mateus.1090ptbr0@gmail.com"},
+    {name = "Adilio Juvencio de Freitaas", email="n@gmail.com"}
 ]
-
-requires-python = ">=3.10"
+license = {text = "None"}
+readme = "README.md"
+requires-python = ">=3.12"
 dependencies = [
-    "pandas (>=2.3.0,<3.0.0)",
-    "gitpython (>=3.1.44,<4.0.0)",
-    "ghapi (>=1.0.6,<2.0.0)"
 ]
-
-[tool.poetry]
 
 
 [build-system]

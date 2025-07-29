@@ -1,11 +1,12 @@
-
 import os
-import time 
 import sys
+import time 
+import json
 import pickle
 import logging
 
 import plots_ as pl
+
 from sklearn.ensemble import (
     RandomForestRegressor
 )
@@ -15,10 +16,10 @@ from sklearn.model_selection import (
     train_test_split, 
     ShuffleSplit
 )
+
 from sklearn.linear_model import (
     RANSACRegressor, 
     LinearRegression,
-    GammaRegressor,
     PassiveAggressiveRegressor,
     ElasticNet
 )
@@ -50,9 +51,9 @@ log_dir = f'benchmark/logs/logs_{timestamp}'
 os.makedirs(log_dir, exist_ok=True)
 
 # Caminho do arquivo de log
-log_path_benchmark = os.path.join(log_dir, 'benchmark_regression.log')
+log_path_benchmark  = os.path.join(log_dir, 'benchmark_regression.log')
 log_path_experiment = os.path.join(log_dir, 'experiment_regression.log')
-log_path_start = os.path.join(log_dir, 'start.log')
+log_path_start      = os.path.join(log_dir, 'start.log')
 
 def load_dataset(dataset_path) -> pd.DataFrame:
     path = os.path.join(BASE_DIR, 'data', dataset_path)
@@ -101,7 +102,9 @@ def metrics_plots_best(model, X, y):
 def metrics_plots_estimator(dicionario):
     pl.plot_estimator_metrics(dicionario)
 
-
+def save_metrics(dicionario):
+    with open(f"benchmark/metrics/data.json", "w") as f:
+        json.dump(dicionario, f, indent=4)
 
 def run_experiment(dataset, x_features, y_label, models, grid_params_list, cv_criteria) -> dict:
 
@@ -268,6 +271,7 @@ def build_champion_model(dataset, x_features, y_label, model_info, cv_criteria) 
     
     metrics_scores = extract_model_metrics_scores(y_test, y_pred)
 
+    save_metrics(metrics_scores)
 
     save_model(grid_model.best_estimator_, model_info.get("name"), cv_criteria)
     
@@ -345,25 +349,34 @@ def select_best_model(fold_results) -> str:
         mse_scores = [fold_results[fold][model_name]['score']['mean_squared_error'] for fold in fold_results]
         avg_scores[model_name] = np.mean(mse_scores)
 
-    print("Média do Erro Quadrático (MSE) por modelo:", avg_scores)
     best_model_name = min(avg_scores, key=avg_scores.get)
     return best_model_name
 
 
 
-def start(dataset_path):
+def start(dataset_path, selected_models=None):
     """Função principal que executa o pipeline."""
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("start")
+    logger.setLevel(logging.INFO)
+
     handler = logging.FileHandler(log_path_start, mode='w', encoding='utf-8')
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_formatter = logging.Formatter('%(levelname)s - %(message)s')
+    console_handler.setFormatter(console_formatter)
+
     handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
     logger.addHandler(handler)
-    logger.info("[Passo 1] Realizando Benchmark dos Modelos")
-    
+
+    logger.info("[Passo 1] Realizando Benchmark dos Modelos = RANSAC, RandomForest e AdaBoost")
+    if selected_models is None:
+        selected_models = ['RANSAC', 'RandomForest', 'AdaBoost']
     # CORREÇÃO: Usar os nomes corretos dos modelos de regressão
     fold_results = do_benchmark(grid_search=True,
                                 dataset_path=dataset_path,
-                                selected_models=["AdaBoost", "RANSAC", "RandomForest"])
+                                selected_models=selected_models)
 
     for fold, models_info in fold_results.items():
         for model_name, info in models_info.items():
@@ -394,9 +407,19 @@ def start(dataset_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
+    if len(sys.argv) == 3:
+        selected_models = str(sys.argv[2]).split(',')    
+        dataset_path = str(sys.argv[1])
+        
+        start(dataset_path, selected_models)
+
+    if len(sys.argv) == 1:
         dataset_path = str(sys.argv[1])
         start(dataset_path)
+
     else:
-        print("Erro: Você deve prover o caminho para o dataset como um argumento.")
-        print("Exemplo: python seu_script.py data_transformed.csv")
+        print("""
+              Para executar o pipeline, utilize o seguinte comando:
+              python pipeline.py <caminho_do_dataset> [modelos_selecionados]
+              exemplo: python pipeline.py data.csv "RANSAC, RandomForest, AdaBoost"
+              """)

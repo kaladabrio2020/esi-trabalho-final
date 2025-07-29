@@ -125,8 +125,8 @@ def transform_and_prepare_data(raw_csv_path: str, logger: logging.Logger = None)
         gm.fit(X)
 
         densidade = gm.score_samples(X)
-        logger.info(f'Percentil : 4% = das instancias serão sinalizadas como outliers')
-        densidade_threshold = np.percentile(densidade, 4)
+        logger.info(f'Percentil : 10% = das instancias serão sinalizadas como outliers')
+        densidade_threshold = np.percentile(densidade, 10)
 
         # Máscara booleana para identificar outliers
         outlier_mask = densidade < densidade_threshold
@@ -151,13 +151,14 @@ def transform_and_prepare_data(raw_csv_path: str, logger: logging.Logger = None)
         return df.drop(index=index)
     
     def arrendondamento(data):
-        logger.info("Aplicando arredondamento para a coluna bathrooms...")
+        logger.info("Aplicando arredondamento para a coluna bathrooms e floors...")
         data['bathrooms'] = data['bathrooms'].astype(int)
+        data['floors'] = data['floors'].astype(int)
         return data
         
     def dummies(data):  
-        logger.info("Criando dummies para as colunas 'floors', 'waterfront', 'view' e 'condition'\n")
-        return pd.get_dummies(data=data, columns=['floors', 'waterfront', 'view', 'condition'], dtype=int)
+        logger.info("Criando dummies para as colunas 'floors', 'waterfront', 'view' , 'condition' , bedrooms ebathrooms\n")
+        return pd.get_dummies(data=data, columns=['floors', 'waterfront', 'view', 'condition','bedrooms','bathrooms'], dtype=int)
     
     def transformacao_log(data):
         logger.info("Aplicando transformação log para a coluna 'price'\n")
@@ -215,6 +216,9 @@ def transform_and_prepare_data(raw_csv_path: str, logger: logging.Logger = None)
 
     transformed_file_path = "./data/data_transformed.csv"
     data.to_csv(transformed_file_path, index=False)
+    subset = data['price']
+    subset = np.expm1(subset)
+    subset.to_csv("./data/price_real_value.csv", index=False)
 
     logger.info(f"Dataset transformado salvo em: {transformed_file_path}\n")
     return transformed_file_path

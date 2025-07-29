@@ -1,0 +1,10 @@
+2025-07-28 19:03:49,495 - INFO - Carregando dataset de: C:\Users\mateu\Documents\Norton\Projetos GIT\esi-trabalho-final\data/data_transformed.csv
+2025-07-28 19:03:49,495 - INFO - Características:
+2025-07-28 19:03:49,495 - INFO -   => sqft_living, sqft_lot, sqft_above, sqft_basement, yr_built, yr_renovated, floors_1, floors_2, floors_3, waterfront_0, waterfront_1, view_0, view_1, view_2, view_3, view_4, condition_1, condition_2, condition_3, condition_4, condition_5, bedrooms_0.0, bedrooms_1.0, bedrooms_2.0, bedrooms_3.0, bedrooms_4.0, bedrooms_5.0, bedrooms_6.0, bedrooms_7.0, bedrooms_8.0, bedrooms_9.0, bathrooms_0, bathrooms_1, bathrooms_2, bathrooms_3, bathrooms_4, bathrooms_5, bathrooms_6, bathrooms_8, char_token_0, char_token_1, char_token_2, char_token_3, char_token_4
+2025-07-28 19:03:49,495 - INFO - Alvo: price
+2025-07-28 19:03:49,495 - INFO - Modelos Disponíveis:
+2025-07-28 19:03:49,495 - INFO -   => RANSAC, RandomForest, AdaBoost
+2025-07-28 19:03:49,495 - INFO - Parâmetros de Random Search:
+2025-07-28 19:03:49,495 - INFO -   => RandomForest: n_estimators, max_depth, min_samples_split, min_samples_leaf
+2025-07-28 19:03:49,495 - INFO -   => AdaBoost: n_estimators, estimator, loss, learning_rate
+2025-07-28 19:03:49,495 - INFO -   => RANSAC: max_trials, residual_threshold

@@ -1,0 +1,37 @@
+2025-07-28 14:50:50,754 - INFO - =============================================
+2025-07-28 14:50:50,754 - INFO - INICIANDO O PIPELINE DE DADOS - PREÇOS DE IMÓVEIS
+2025-07-28 14:50:50,754 - INFO - =============================================
+2025-07-28 14:50:50,761 - INFO - Iniciando o download do dataset: shree1992/housedata
+
+2025-07-28 14:50:50,761 - INFO - Pegando o token do Kaggle
+
+2025-07-28 14:50:51,039 - INFO - Token do Kaggle pegado com sucesso.
+
+2025-07-28 14:50:52,564 - INFO - Download e descompactação concluídos com sucesso.
+
+2025-07-28 14:50:52,566 - INFO - Carregando dados de: .\data\data.csv
+2025-07-28 14:50:52,671 - INFO - Iniciando a transformação dos dados
+
+2025-07-28 14:50:52,671 - INFO - Removendo instâncias de casas com preços <= 0
+2025-07-28 14:50:52,675 - INFO - Instancias removidas: 49
+
+2025-07-28 14:50:52,678 - INFO - Aplicando padronização aos dados...
+2025-07-28 14:50:52,696 - INFO - Aplicando arredondamento para a coluna bathrooms e floors...
+2025-07-28 14:50:52,700 - INFO - Criando dummies para as colunas 'floors', 'waterfront', 'view' , 'condition' , bedrooms ebathrooms
+
+2025-07-28 14:50:52,726 - INFO - Aplicando gaussian_outliers para a coluna price...
+2025-07-28 14:50:53,298 - INFO - Percentil : 10% = das instancias serão sinalizadas como outliers
+2025-07-28 14:50:53,301 - INFO - Quantidade de outliers: 455 que serão removidos
+2025-07-28 14:50:53,303 - INFO - Aplicando transformação log para a coluna 'price'
+
+2025-07-28 14:50:53,303 - INFO -  => Justificativa da transformação https://scikit-learn.org/stable/auto_examples/compose/plot_transformed_target.html
+2025-07-28 14:50:53,307 - INFO - Criando tokenizer para a coluna 'location', ela é união de colunas 'street', 'city' e 'statezip'
+2025-07-28 14:50:53,592 - INFO - Aplicando GlobalAveragePooling1D para a tokens
+2025-07-28 14:50:53,657 - INFO - Criando colunas de location para char_token_n..
+2025-07-28 14:50:53,665 - INFO - Removendo colunas: ['date', 'street', 'city', 'statezip', 'location', 'country']
+2025-07-28 14:50:53,972 - INFO - Dataset transformado salvo em: ./data/data_transformed.csv
+
+2025-07-28 14:50:53,972 - INFO - =============================================
+2025-07-28 14:50:53,980 - INFO - PIPELINE DE DADOS CONCLUÍDO COM SUCESSO!
+2025-07-28 14:50:53,980 - INFO - O dataset final para modelagem está em: ./data/data_transformed.csv
+2025-07-28 14:50:53,980 - INFO - =============================================
